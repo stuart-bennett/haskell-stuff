@@ -33,14 +33,19 @@ lexer s cs t = case s of
     (x:xs)   -> lexer xs (cs++[x]) t
 
 getToken :: String -> Token String
-getToken "*"      = Keyword "*"
-getToken "AS"     = Keyword "AS"
-getToken "BY"     = Keyword "BY"
-getToken "FROM"   = Keyword "FROM"
-getToken "ORDER"  = Keyword "ORDER"
-getToken "WHERE"  = Keyword "WHERE"
-getToken "DELETE" = Keyword "DELETE"
-getToken "INSERT" = Keyword "INSERT"
-getToken "SELECT" = Keyword "SELECT"
-getToken "UPDATE" = Keyword "UPDATE"
-getToken x = Literal x
+getToken s = case  s `elem` keywords of
+    True  -> Keyword s
+    False -> Literal s
+
+keywords :: [String]
+keywords = [
+      "*"
+    ,"AS"
+    ,"BY"
+    ,"FROM"
+    ,"ORDER"
+    ,"WHERE"
+    ,"DELETE"
+    ,"INSERT"
+    ,"SELECT"
+    ,"UPDATE"]
