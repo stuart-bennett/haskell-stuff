@@ -22,10 +22,25 @@ main = runParser "SELECT * FROM Table"
 runParser :: String -> [Token String]
 runParser s = reverse $ lexer s [] []
 
-data Token s = Space | Word s deriving (Show)
+data Token s = Space
+    | Literal s
+    | Keyword s deriving (Show)
 
 lexer :: String -> String -> [Token String] -> [Token String]
 lexer s cs t = case s of
-    []       -> t
-    (' ':xs) -> lexer xs [] (Word cs: t)
+    []       -> (getToken cs: t)
+    (' ':xs) -> lexer xs [] (getToken cs: t)
     (x:xs)   -> lexer xs (cs++[x]) t
+
+getToken :: String -> Token String
+getToken "*"      = Keyword "*"
+getToken "AS"     = Keyword "AS"
+getToken "BY"     = Keyword "BY"
+getToken "FROM"   = Keyword "FROM"
+getToken "ORDER"  = Keyword "ORDER"
+getToken "WHERE"  = Keyword "WHERE"
+getToken "DELETE" = Keyword "DELETE"
+getToken "INSERT" = Keyword "INSERT"
+getToken "SELECT" = Keyword "SELECT"
+getToken "UPDATE" = Keyword "UPDATE"
+getToken x = Literal x
