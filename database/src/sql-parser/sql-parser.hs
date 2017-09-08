@@ -3,17 +3,29 @@ module SqlParser where
 main = runParser "SELECT * FROM Table"
 
 -- SELECT Field1, Field2 FROM Table
--- INSERT Table (Field1, Field2) VALUES ("Value1", 2)
-runParser :: String -> SelectAst
-runParser s = case words s of
-    ("SELECT":xs) -> select xs
-    _ -> SelectAst { fields = [], table = "" }
+-- SELECT <query specification>
+-- <query specification> ::=
+--   SELECT [<set quantifier>] <select list> <table expression>
+-- <select list> ::=
+--     <asterisk>
+--   | <select sublist>[{<comma> <select sublist>}... ]
+-- <select sublist> ::= <derived column> | <qualifier> <period> <asterisk>
+-- <derived column> ::= <value expression> [<as clause>]
+-- <as clause> ::= [AS] <column name>
+-- <value expression> ::=
+--     <numeric value expression>
+--   | <string expression>
+--   | <datetime value expression>
+--   | <interval value expression>
+-- <string value expression> ::= <character value expression> | <bit value expression>
+-- 
+runParser :: String -> [Token String]
+runParser s = reverse $ lexer s [] []
 
-data SelectAst = SelectAst
-    { fields :: [String]
-    , table :: String
-    } deriving (Show)
+data Token s = Space | Word s deriving (Show)
 
-select :: [String] -> SelectAst
-select ast = SelectAst { fields = ["kjfkds"], table = "" }
-
+lexer :: String -> String -> [Token String] -> [Token String]
+lexer s cs t = case s of
+    []       -> t
+    (' ':xs) -> lexer xs [] (Word cs: t)
+    (x:xs)   -> lexer xs (cs++[x]) t
