@@ -1,7 +1,7 @@
 module SqlParser where
 
-main =
-    let tokens = reverse $ lexer Start "SELECT * test1, 'SELECT' FROM Table" []
+main s =
+    let tokens = reverse $ lexer Start s [] 
     in
         mapM_ (putStrLn . show) $ tokens
 
