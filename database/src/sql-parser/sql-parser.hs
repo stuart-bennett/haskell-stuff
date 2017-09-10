@@ -1,51 +1,63 @@
 module SqlParser where
 
-main = runParser "SELECT * FROM Table"
+main =
+    let tokens = reverse $ lexer Start "SELECT * test1, 'SELECT' FROM Table" []
+    in
+        mapM_ (putStrLn . show) $ tokens
 
--- SELECT Field1, Field2 FROM Table
--- SELECT <query specification>
--- <query specification> ::=
---   SELECT [<set quantifier>] <select list> <table expression>
--- <select list> ::=
---     <asterisk>
---   | <select sublist>[{<comma> <select sublist>}... ]
--- <select sublist> ::= <derived column> | <qualifier> <period> <asterisk>
--- <derived column> ::= <value expression> [<as clause>]
--- <as clause> ::= [AS] <column name>
--- <value expression> ::=
---     <numeric value expression>
---   | <string expression>
---   | <datetime value expression>
---   | <interval value expression>
--- <string value expression> ::= <character value expression> | <bit value expression>
--- 
-runParser :: String -> [Token String]
-runParser s = reverse $ lexer s [] []
+data Token = Whitespace
+    | Literal String
+    | Identifier String
+    | QuotedString String deriving (Show)
 
-data Token s = Space
-    | Literal s
-    | Keyword s deriving (Show)
+data State = Start | EOF | WS | Char | StartQuote | EndQuote Char | Error String deriving (Show)
 
-lexer :: String -> String -> [Token String] -> [Token String]
-lexer s cs t = case s of
-    []       -> (getToken cs: t)
-    (' ':xs) -> lexer xs [] (getToken cs: t)
-    (x:xs)   -> lexer xs (cs++[x]) t
+type StateFn = String -> [Char] -> (Token, String, State)
 
-getToken :: String -> Token String
-getToken s = case  s `elem` keywords of
-    True  -> Keyword s
+quoteFn :: StateFn
+quoteFn s cs = case s of
+    []        -> (QuotedString (reverse cs), [], (Error "Stream ended inside Quotes"))
+    ('\'':y:ys) -> (QuotedString (reverse cs), ys, EndQuote y)
+    (x:xs)    -> quoteFn xs (x:cs)
+
+charFn :: StateFn
+charFn s cs = case s of
+    []        -> (lookupId (reverse cs), [], EOF)
+    (' ':xs)  -> (lookupId (reverse cs), xs, WS)
+    (x:xs)    -> charFn xs (x:cs)
+
+wsFn :: StateFn
+wsFn s cs = case s of
+    []       -> (Whitespace, [], EOF)
+    ('\'':xs) -> (Whitespace, xs, StartQuote)
+    (' ':xs) -> wsFn s []
+    (x:xs)   -> (Whitespace, s, Char)
+
+
+identifiers :: [String]
+identifiers = [
+     "*"
+    ,"DELETE"
+    ,"FROM"
+    ,"SELECT"
+    ,"UPDATE"
+    ,"VALUES"]
+
+lookupId :: String -> Token
+lookupId s = case s `elem` identifiers of
+    True  -> Identifier s
     False -> Literal s
 
-keywords :: [String]
-keywords = [
-      "*"
-    ,"AS"
-    ,"BY"
-    ,"FROM"
-    ,"ORDER"
-    ,"WHERE"
-    ,"DELETE"
-    ,"INSERT"
-    ,"SELECT"
-    ,"UPDATE"]
+stateMap :: State -> StateFn
+stateMap Start        = charFn
+stateMap WS           = wsFn
+stateMap Char         = charFn
+stateMap StartQuote   = quoteFn
+stateMap (EndQuote c) = case c of
+    ' ' -> stateMap WS
+    _   -> stateMap Char
+
+lexer :: State -> String -> [Token] -> [Token]
+lexer state s ts = case (stateMap state) s [] of
+    (token, _, EOF) -> token:ts
+    (token, remainingString, newState) -> lexer newState remainingString (token:ts)
